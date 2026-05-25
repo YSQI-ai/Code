@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宿舍管理系统数据大屏</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .nav-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .nav-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .nav-btn:hover {
+            background-color: #2980b9;
+        }
+        /* 新增：表单的样式 */
+        .form-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: none; /* 默认隐藏，点击学生按钮时显示 */
+            text-align: center;
+        }
+        .form-container input, .form-container select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .submit-btn {
+            padding: 8px 15px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .submit-btn:hover {
+            background-color: #27ae60;
+        }
+        .table-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #e0e6ed;
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #f8f9fa;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #fcfcfc;
+        }
+        tr:hover {
+            background-color: #f1f4f8;
+        }
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🏢 宿舍管理系统 - 数据面板</h1>
+
+    <div class="nav-container">
+        <button class="nav-btn" onclick="loadData('students', ['学号', '姓名', '性别', '院系', '班级', '电话', '入住日期'])">👨‍🎓 学生信息</button>
+        <button class="nav-btn" onclick="loadData('buildings', ['楼号', '楼名', '总楼层', '管理员工号', '联系电话'])">🏢 宿舍楼信息</button>
+        <button class="nav-btn" onclick="loadData('repairs', ['报修单号', '学号', '故障描述', '提交时间', '状态', '处理人工号'])">🔧 报修记录</button>
+    </div>
+
+    <!-- 新增：添加学生的表单区 -->
+    <div class="form-container" id="student-form">
+        <h3>➕ 录入新学生</h3>
+        <input type="text" id="Sno" placeholder="学号 (必填)" required>
+        <input type="text" id="Sname" placeholder="姓名 (必填)" required>
+        <select id="Ssex">
+            <option value="男">男</option>
+            <option value="女">女</option>
+        </select>
+        <input type="text" id="Dept" placeholder="院系 (如 计算机学院)">
+        <input type="text" id="Sclass" placeholder="班级 (如 计科2301)">
+        <input type="text" id="Phone" placeholder="联系电话">
+        <button class="submit-btn" onclick="submitStudent()">提交入库</button>
+    </div>
+
+    <div class="table-container" id="table-container">
+        <p style="text-align: center; color: #7f8c8d;">请点击上方按钮加载数据...</p>
+    </div>
+
+    <script>
+        const endpointMap = {
+            'students': '/api/students',
+            'buildings': '/api/buildings',
+            'repairs': '/api/repairs'
+        };
+
+        const keyMap = {
+            'students': ['Sno', 'Sname', 'Ssex', 'Dept', 'Sclass', 'Phone', 'CheckInDate'],
+            'buildings': ['BuildingNo', 'BuildingName', 'TotalFloors', 'AdminNo', 'Phone'],
+            'repairs': ['RepairID', 'Sno', 'Description', 'SubmitTime', 'Status', 'AdminNo']
+        };
+
+        function loadData(type, headers) {
+            const container = document.getElementById('table-container');
+            const form = document.getElementById('student-form');
+            
+            container.innerHTML = '<p style="text-align: center;">加载中，请稍候...</p>';
+
+            // 只有点击“学生信息”时才显示添加表单
+            if (type === 'students') {
+                form.style.display = 'block';
+            } else {
+                form.style.display = 'none';
+            }
+
+            fetch(endpointMap[type])
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        renderTable(data.data, headers, keyMap[type]);
+                    } else {
+                        container.innerHTML = `<p class="error">后端报错: ${data.message}</p>`;
+                    }
+                })
+                .catch(err => {
+                    container.innerHTML = `<p class="error">网络请求失败，请确保 app.py 正在运行。<br>详细信息: ${err.message}</p>`;
+                });
+        }
+
+        function renderTable(data, headers, keys) {
+            const container = document.getElementById('table-container');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p style="text-align: center;">该表中暂无数据</p>';
+                return;
+            }
+            let html = '<table><thead><tr>';
+            headers.forEach(h => html += `<th>${h}</th>`);
+            html += '</tr></thead><tbody>';
+            data.forEach(row => {
+                html += '<tr>';
+                keys.forEach(k => {
+                    let cellValue = (row[k] !== null && row[k] !== undefined) ? row[k] : '<span style="color:#bdc3c7">-</span>';
+                    html += `<td>${cellValue}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // ==================== 新增：提交数据的函数 ====================
+        function submitStudent() {
+            // 获取用户在输入框里填的内容
+            const studentData = {
+                Sno: document.getElementById('Sno').value,
+                Sname: document.getElementById('Sname').value,
+                Ssex: document.getElementById('Ssex').value,
+                Dept: document.getElementById('Dept').value,
+                Sclass: document.getElementById('Sclass').value,
+                Phone: document.getElementById('Phone').value
+            };
+
+            // 检查必填项
+            if (!studentData.Sno || !studentData.Sname) {
+                alert("学号和姓名是必填项哦！");
+                return;
+            }
+
+            // 使用 POST 请求把数据发给 Python
+            fetch('/api/students', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json' // 告诉后端我们发的是 JSON 数据
+                },
+                body: JSON.stringify(studentData) // 把 JavaScript 对象变成 JSON 字符串
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(data.message); // 弹出成功提示
+                    
+                    // 清空输入框
+                    document.getElementById('Sno').value = '';
+                    document.getElementById('Sname').value = '';
+                    document.getElementById('Dept').value = '';
+                    document.getElementById('Sclass').value = '';
+                    document.getElementById('Phone').value = '';
+
+                    // 重新刷新一下学生表格，显示刚添加的人
+                    loadData('students', ['学号', '姓名', '性别', '院系', '班级', '电话', '入住日期']);
+                } else {
+                    alert("错误: " + data.message);
+                }
+            })
+            .catch(error => {
+                alert("提交失败，请检查网络或后端服务器状态！");
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
